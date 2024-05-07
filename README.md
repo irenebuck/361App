@@ -1,3 +1,6 @@
+Version 1
+---------
+
 Who: As a child recently out of 2nd grade and entering 3rd grade, I want to practice my sight words over the summer break. 
 
 What: This program cycles through @250 sight words taught in the Rocklin Unified School District to 2nd graders. 
