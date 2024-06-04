@@ -1,7 +1,8 @@
 import pyttsx3
 import random
 import time
-import zmq
+import keyboard
+import sys
 
 
 def say_word(seconds, engine, word):
@@ -29,7 +30,7 @@ def title():
 
 def opening_message():
     """Displays the reason the user may use the program"""
-    print("Practice your 2nd Grade sight words!")
+    print("Practice your 2nd Grade sight words!\n")
 
 
 def display_options():
@@ -38,7 +39,7 @@ def display_options():
         "a       Type a then hit Enter to hear more about this program.\n"
         "c       Type c then hit Enter to check how many times this program has been used.\n"
         "t       Type t then hit Enter to take more time on each word before it is said aloud.\n"
-        "q       Type q anytime to exit the program. \n")
+        "q       Type q then hit Enter to exit the program. \n")
 
 
 def warning():
@@ -47,59 +48,115 @@ def warning():
            "This program displays a word, then says the word aloud after 3 seconds.\n")
 
 
+def clear_pipe():
+    """Deletes everything from the pipe.txt file"""
+    with open("pipe.txt", "w") as file:
+        pass
 
-def command_entered(socket):
+
+def micro_A_usage_count():
+    """Implements microservice A - tells the user the number of times the program has been used"""
+    with open('pipe.txt', 'w') as outfile:
+        outfile.write('get count')
+    time.sleep(1)
+    with open('pipe.txt', 'r') as infile:
+        response = infile.readline()
+        print(response)
+    clear_pipe()
+
+
+def micro_A_usage_log():
+    """Implements microservice A - tells the user the number of times the program has been used"""
+    with open('pipe.txt', 'w') as outfile:
+        outfile.write('log')
+    time.sleep(1)
+    clear_pipe()
+
+
+def micro_A_delete():
+    """Implements microservice A - deletes the last entry in the usage.txt log"""
+    with open('pipe.txt', 'w') as outfile:
+        outfile.write('delete last')
+    time.sleep(1)
+    clear_pipe()
+
+
+def micro_B_about():
+    """Implements microservice B - gives information about why and how to use the program"""
+    with open('pipe.txt', 'w') as outfile:
+        outfile.write('about info')
+    time.sleep(1)
+    with open('pipe.txt', 'r') as infile:
+        response = infile.read()
+        print(response)
+    clear_pipe()
+
+
+def micro_C_time(speed):
     """
-    Parameter: receives a socket for sending and receiving strings.
+    Implements microservice C - gets user's choice of time between seeing and saying word in seconds
+    Returns: integer - number of seconds
+    """
+    with open('pipe.txt', 'w') as outfile:
+        outfile.write(f'get seconds {speed}')
+    time.sleep(1)
+    with open('pipe.txt', 'r') as infile:
+        response = int(infile.readline())
+    clear_pipe()
+    return response
+
+
+def micro_D_quit():
+    """
+    Implements microservice D - quits program and displays message
+    """
+    with open('pipe.txt', 'w') as outfile:
+        outfile.write('get teacher message')
+    time.sleep(1)
+    with open('pipe.txt', 'r') as infile:
+        response = infile.read()
+        print(response)
+    clear_pipe()
+    sys.exit()
+
+
+def break_loop(hit_q):
+    """Uses a mutable list to change the hit_q flag and removes the credit in the
+    usage.txt tracker so user doesn't get credit for last play/log removed"""
+    hit_q[0] = True
+    micro_A_delete()
+
+
+def command_entered():
+    """
     This function takes input from user about which feature of the program they want to use
     """
     entry = input('What do you want to do? ')
     if entry == 't':
-        socket.send_string('get seconds')
-        response = int(socket.recv_string())
+        speed = input('Do you want to go slow, medium, or fast? Hit s for slow, m for medium, or f for fast.')
+        response = micro_C_time(speed)
         one_game(response)
     elif entry == 'a':
-        socket.send_string('show about')
-        message = socket.recv_string()
-        print(message)
-        command_entered(socket)
+        micro_B_about()
+        command_entered()
     elif entry == 'c':
-        socket.send_string('show count')
-        count = socket.recv_string()
-        print(count)
-        command_entered(socket)
+        micro_A_usage_count()
+        command_entered()
     elif entry == '':
         one_game(3)
     elif entry == 'q':
         print("Goodbye!")
+        sys.exit()
     else:
-        command_entered(socket)
+        command_entered()
 
 
-def read_file():
-    """Opens and reads the words in words.txt file"""
+def read_shuffle():
+    """Opens, reads, and then shuffles the words in words.txt file"""
     with open("words.txt", "r") as infile:
         words = infile.readlines()
+    random.shuffle(words)
     return words
-
-
-def random_int(num_of_words):
-    """ 
-    Parameter: integer that is the total number of words in the words.txt file
-    Returns: a random integer between 0 and the number of words - 1 in the words.txt file
-    """
-    rando = random.randint(0, num_of_words - 1)
-    return rando
-
-
-def get_word(word_list, num_of_words):
-    """
-    Params: list of words, a count of the number of words in the list of words
-    Calls random_int to create a random integer, then returns the word at that index in the list
-    """
-    index = random_int(num_of_words)
-    new_word = word_list[index]
-    return new_word
 
 
 def display_word(word_to_display, words_remaining):
@@ -120,27 +177,20 @@ def one_game(seconds):
     This program plays through one game with either default 3-second delay or user's choice.
     Delay applies to time word appears on screen to when pyttsx3 module says it aloud.
     """
+    micro_A_usage_log()
     engine = pyttsx3.init()
     count = 0
-    words = read_file()
+    words = read_shuffle()
     number_of_words = len(words)
-    choice = input("Press q to quit at anytime.")
-    while count < number_of_words:
-        new_word = get_word(words, number_of_words)
-        display_word(new_word, number_of_words - count)
-        say_word(seconds, engine, new_word)
+    hit_q = [False]
+    print('\nHit the q key to exit the game early.\n')
+    keyboard.add_hotkey('q', break_loop, args=(hit_q,))
+    while count < number_of_words and not hit_q[0]:
+        remaining = number_of_words - count - 1
+        display_word(words[count], remaining)
+        say_word(seconds, engine, words[count])
         count += 1
-        if count == 10:
-            socket.send_string('log')
-        if choice == 'q':
-            socket.set_string('quit early')
-            message = socket.recv_string()
-            print(message)
-            return
-        else:
-            continue
-    socket.set_string('finished game')
-    message = socket.recv_string()
+    micro_D_quit()
 
 
 if __name__ == "__main__":
@@ -148,9 +198,4 @@ if __name__ == "__main__":
     opening_message()
     warning()
     display_options()
-
-    context = zmq.Context()
-    socket = context.socket(zmq.REQ)
-    socket.connect("tcp://localhost:8080")
-
-    command_entered(socket)
+    command_entered()

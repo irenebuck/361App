@@ -2,29 +2,27 @@
 # The user enters how long of a delay they would like between the word appearing on the
 # screen and the program saying the word aloud.
 
-import zmq
 
-context = zmq.Context()
-socket = context.socket(zmq.REP)
-socket.bind("tcp://*:8080")
-
-
-def capture_seconds():
-    """Asks user for number of seconds they want to delay seeing word to hearing it."""
-    entry = input('How many seconds do you want the program to wait to say the word you see? \n '
-                'Enter the number of seconds and hit enter. Seconds: ')
-    if entry.isdigit():
-        return entry
+def capture_seconds(user_speed):
+    """
+    :parameter last character of message sent through pipe
+    Removes the last character of the message to determine the speed a user requested.
+    :returns the speed in seconds
+    """
+    if user_speed == 'm':
+        return '5'
+    elif user_speed == 's':
+        return '10'
     else:
-        entry = input("Please only enter the number of seconds, no letters or other characters.")
-        capture_seconds()
+        return '3'
 
 
 while True:
-    message = socket.recv_string()
-    if message == 'get seconds':
-        user_seconds= capture_seconds()
-        socket.send_string(user_seconds)
-    else:
-        continue
+    with open('pipe.txt', 'r') as infile:
+        message = infile.readline()
+    if 'get seconds' in message:
+        choice = message[-1]
+        response = capture_seconds(choice)
+        with open('pipe.txt', 'w') as outfile:
+            outfile.write(response)
 
