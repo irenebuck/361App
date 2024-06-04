@@ -17,9 +17,7 @@ Mrs. Lake
 while True:
     with open('pipe.txt', 'r') as infile:
         message = infile.readline()
-    if message == 'q':
-        print("Goodbye!")
-    elif message == 'get teacher message':
+    if message == 'get teacher message':
         with open('pipe.txt', 'w') as outfile:
             outfile.write(teacher_message)
     else:
